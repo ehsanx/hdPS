@@ -1,0 +1,450 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Rethinking Residual Confounding Bias Reduction: Why Vanilla hdPS Alone is No Longer Enough",
+    "section": "",
+    "text": "Abstract\nHealth studies that use administrative databases often lack complete information on confounders. On the other hand, a large number of additional diagnoses, procedures, and medication codes that are regularly recorded in healthcare encounters, are not used in epidemiological studies, due to their perceived lack of relevance to the study question. To address this residual confounding problem, researchers have developed the high-dimensional propensity score (hdPS) algorithm. This algorithm allows researchers to leverage this additional information as proxies for unmeasured and mis-measured covariates, which can help reduce residual confounding bias in the estimation of treatment effects. Since the hdPS algorithm deals with massive amounts of information, machine learning variable selection methods are proposed as an alternative. These methods have been shown to be effective in reducing bias, but it remains a challenge to estimate variance correctly in this context. Even doubly robust or targeted maximum likelihood estimators (TMLE) can struggle with this issue. To address this problem, we designed a simulation study to compare the performance of methods of the following categories: (1) vanilla hdPS, (2) machine learning and hybrid alternatives proposed in the literature, and (3) TMLE versions with two sets of candidate learners for super learning. We will evaluate these methods in terms of bias, variance (both model-based and empirical), and coverage. We will present a nationally representative analysis as a motivating example, explain how this study fits into the literature so far, and provide practical recommendations for practitioners based on our findings.\n\nVersion history\nMaterials were prepared for the deliveries of the Statistics and Biostatistics seminar series, at the Department of Statistics and Actuarial Science, University of Waterloo, April 26, 2023 — 4:00 PM EDT.\n\n\nComments\nFor any comments regarding this document, reach out to me."
+  },
+  {
+    "objectID": "motivating.html#literature",
+    "href": "motivating.html#literature",
+    "title": "Motivating example",
+    "section": "Literature",
+    "text": "Literature\nType 2 diabetes is a metabolic disorder that is characterized by high blood sugar levels and insulin resistance. There is a growing body of evidence that, for type 2 diabetes, obesity is a well-established risk factor. Possible mechanism includes excess body fat leading to insulin resistance, while impairing the body’s ability to regulate blood sugar levels.\n\n\n\n\n\n\n\n\n\n(Klein et al. 2022)"
+  },
+  {
+    "objectID": "motivating.html#research-question",
+    "href": "motivating.html#research-question",
+    "title": "Motivating example",
+    "section": "Research question",
+    "text": "Research question\n“Does obesity increase the risk of developing diabetes?”\n\n\n\n\n\nflowchart LR\n  A[Obesity] --> Y(Diabetes)\n\n\n\n\n\n\n\n\n\n\n\nExposure: Being obese\n\nOutcome: Developing diabetes\n\n\n\n\n\n\n\nTip\n\n\n\nThe primary goal of the research is not to answer a clinical question or to draw conclusions about the relationship between obesity and diabetes in the general population, but rather to use the relationship as a motivating example for conducting simulations that compares different statistical methods.\n\n\n\n\n\n\nKlein, Samuel, Amalia Gastaldelli, Hannele Yki-Järvinen, and Philipp E Scherer. 2022. “Why Does Obesity Cause Diabetes?” Cell Metabolism 34 (1): 11–20."
+  },
+  {
+    "objectID": "data.html#choose-a-u.s.-data-source",
+    "href": "data.html#choose-a-u.s.-data-source",
+    "title": "1  Data to Analyze",
+    "section": "1.1 Choose a U.S. data source",
+    "text": "1.1 Choose a U.S. data source\n\n\n\n\n\n\n\n\nData source: National Health and Nutrition Examination Survey (NHANES) (Disease Control and Prevention 2021)\n\n2013-2014,\n2015-2016,\n2017-2018\n\nAvailability: NHANES is a publicly available dataset that can be downloaded for free from the CDC website.\nDesign: Observational cross-sectional data."
+  },
+  {
+    "objectID": "data.html#confounder-identification",
+    "href": "data.html#confounder-identification",
+    "title": "1  Data to Analyze",
+    "section": "1.2 Confounder identification",
+    "text": "1.2 Confounder identification\nDirected acyclic graph (DAG)\n\n\n(Greenland, Pearl, and Robins 1999)\n\n\n\n\n\nflowchart TB\n  A[Obesity A] --> Y(Diabetes Y)\n  L[Confounders C] --> Y\n  L --> A\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nHypothesized Directed acyclic graph drawn based on analyst’s best understanding of the literature\n\n\n\n\n\n\nExposure: Being obese\n\nOutcome: Developing diabetes\n\nConfounders: Demographic and lab variables"
+  },
+  {
+    "objectID": "data.html#identify-measured-and-unmeasured-variables-in-the-data",
+    "href": "data.html#identify-measured-and-unmeasured-variables-in-the-data",
+    "title": "1  Data to Analyze",
+    "section": "1.3 Identify measured and unmeasured variables in the data",
+    "text": "1.3 Identify measured and unmeasured variables in the data\nFind variables capturing the following concepts in the data based on a hypothesized DAG.\n\n\n\n\n\nRole\nData Component\nVariables considered based on DAG\n\n\n\n\nOutcome\nDIQ\nHave diabetes1\n\n\nExposure\nBMX\nObese; BMI >= 30\n\n\nConfounder\n(demographic) DEMO\nAge, Sex, Education, Race/ethnicity, Marital status, Annual household income, County of birth, Survey cycle year\n\n\n\n(behaviour) SMQ, PAQ, SLQ, DBQ\nSmoking2, Vigorous work activity, Sleep3, Diet4\n\n\n\n(health history / access) DIQ, HUQ\nDiabetes family history, Access to care5\n\n\n\n(lab) BPX, BPQ, BIOPRO\nBlood pressure (systolic, diastolic6), Cholesterol, Uric acid, Total Protein, Total Bilirubin, Phosphorus, Sodium, Potassium, Globulin, Total Calcium\n\n\n\n\n\n\n14 demographic, behavioral, health history related variables\n\nMostly categorical\n\n11 lab variables\n\nMostly continuous"
+  },
+  {
+    "objectID": "data.html#analytic-data",
+    "href": "data.html#analytic-data",
+    "title": "1  Data to Analyze",
+    "section": "1.4 Analytic data",
+    "text": "1.4 Analytic data\n3 cycles of NHANES datasets were merged:\n\n\n\n\nflowchart LR\n  A[NHANES] --> C1(2013-2014 cycle) --> ss1(10,175 \\nparticipants)\n  A --> C2(2015-2016 cycle) --> ss2(9,971 \\nparticipants)\n  A --> C3(2017-2018 cycle) --> ss3(9,254 \\nparticipants)\n  ss1 --> ss(7,585 \\nafter \\nimposing \\neligibility \\ncriteria)\n  ss2 --> ss\n  ss3 --> ss\n  style A fill:#FFA500;\n  style C1 fill:#FFA500;\n  style C2 fill:#FFA500;\n  style C3 fill:#FFA500;\n  style ss1 fill:#FFA500;\n  style ss2 fill:#FFA500;\n  style ss3 fill:#FFA500;\n  style ss fill:#FFA500;\n\n\n\n\n\n\n\n\n\n\n\n\nOur study population was restricted to the U.S. population who were\n\n20 years or older and\nnot pregnant at the time of survey data collection, and\nwho had available International Classification of Diseases (ICD) codes to ensure we can extract sufficient proxy information for the analysis (discussed next page).\n\n\n\nDisease Control, Centers for, and Prevention. 2021. “National Health and Nutrition Examination Survey (NHANES).” National Center for Health Statistics.\n\n\nGreenland, Sander, Judea Pearl, and James M Robins. 1999. “Causal Diagrams for Epidemiologic Research.” Epidemiology, 37–48."
+  },
+  {
+    "objectID": "proxy.html#measuring-comorbidity-burden",
+    "href": "proxy.html#measuring-comorbidity-burden",
+    "title": "2  Reducing residual confounding",
+    "section": "2.1 Measuring comorbidity burden",
+    "text": "2.1 Measuring comorbidity burden\nIn health research, the overall health status/ Disease burden could be a potential confounding factor. In the original DAG, we had comorbidity as a known confounder.\n\n\n\n\n\nflowchart TB\n  A[Obesity] --> Y(Diabete)\n  L[Comorbidity measure unobserved] --> Y\n  L --> A\n  style A fill:#90EE90;\n  style Y fill:#ADD8E6;\n  style L fill:#FF0000;\n\n\n\n\n\n\n\n\n\n\nCharlson Comorbidity Index (CCI) is a measure that quantifies the burden of comorbidities or pre-existing medical conditions in patients (takes into account 17 comorbidities), which can impact their health outcomes and overall survival.\nElixhauser Comorbidity Index (ECI) is a measure of the burden of comorbidities, based on 30 different comorbid conditions.\nChronic Disease Score (CDS) is a weighted score of the number and severity of chronic diseases, calculated using self-reported data on diagnosed conditions (considers the presence of 21 chronic conditions).\n\n\n\n\n(Charlson et al. 1987; Elixhauser et al. 1998; Von Korff, Wagner, and Saunders 1992)\nNHANES does not include information on all of the comorbidities included in theses scores / indices.\n\n\n\n\n\n\n\nResidual confounding\n\n\n\nComorbidity scores are widely used as a measure of comorbidity burden, and their calculation often relies on data that may not be available in certain contexts, such as in NHANES or Canadian health administrative databases. In such cases, when comorbidity burden is a known confounder, researchers may use proxy information to approximate and mimic the information. Not being able to adjust for such variable can introduce bias and residual confounding in the treatment effect estimation.\n\n\n\n\n\n(Schneeweiss and Maclure 2000; L. Lix et al. 2011; L. M. Lix et al. 2013)"
+  },
+  {
+    "objectID": "proxy.html#proxy-adjustment-empirical-criterion",
+    "href": "proxy.html#proxy-adjustment-empirical-criterion",
+    "title": "2  Reducing residual confounding",
+    "section": "2.2 Proxy Adjustment Empirical criterion",
+    "text": "2.2 Proxy Adjustment Empirical criterion\nEmpirical criterion: Modified disjunctive cause criterion\nVanderWeele et al. 2019 European Journal of Epidemiology: CC BY license\n\n\n\n\n\nHypothesized Directed acyclic graph with comorbidity measure being unmeasured, and approximated by the simple count measures based on the ICD codes\n\n\n\n\n\n\nAdjust for variables that are (a) causes of exposure or outcome or both, (b) discard: known instrument, (c) including good proxies for unmeasured common causes (VanderWeele 2019)"
+  },
+  {
+    "objectID": "proxy.html#additional-information-icd-10-cm",
+    "href": "proxy.html#additional-information-icd-10-cm",
+    "title": "2  Reducing residual confounding",
+    "section": "2.3 Additional information: ICD-10-CM",
+    "text": "2.3 Additional information: ICD-10-CM\n\n\nThe International Classification of Diseases 10th Revision (ICD-10) is a standardized system of codes for the classification of diseases, disorders, and injuries.\n\n\n\nRole\nData Source\nVariables considered\n\n\n\n\nRole unclear as they may not directly relate to the research question\nRXQ_RX\nPrescription medication ICD-10-CM code\n\n\n\n\n\nRXQ_RX questionnaire (a) collects information on prescription medications taken in the past 30 days, (b) conducted by trained interviewers, and (c) with some quality control efforts.\n\n\n\n\n\nExamples of ICD-10-CM codes (3-7 characters, 1st character being alpha, 2-end are numberic, often with a dot) assigned to reasons for using medication (see Appendix in NHANES RXQ_RX component)\n\n\n\n\nCount of prescriptions is often used to measure comorbidity burden. This is not a perfect measure. But could serve as a proxy for our purpose.\n\n\n\n\nPrescription medication (ICD-10-CM codes from all 3 cycles) data was liked with the initial data.\n\n\nCharlson, Mary E, Peter Pompei, Kathy L Ales, and C Ronald MacKenzie. 1987. “A New Method of Classifying Prognostic Comorbidity in Longitudinal Studies: Development and Validation.” Journal of Chronic Diseases 40 (5): 373–83.\n\n\nElixhauser, Anne, Claudia Steiner, D Robert Harris, and Rosanna M Coffey. 1998. “Comorbidity Measures for Use with Administrative Data.” Medical Care, 8–27.\n\n\nLix, Lisa M, Jacqueline Quail, Opeyemi Fadahunsi, and Gary F Teare. 2013. “Predictive Performance of Comorbidity Measures in Administrative Databases for Diabetes Cohorts.” BMC Health Services Research 13: 1–12.\n\n\nLix, LM, J Quail, G Teare, and B Acan. 2011. “Performance of Comorbidity Measures for Predicting Outcomes in Population-Based Osteoporosis Cohorts.” Osteoporosis International 22: 2633–43.\n\n\nSchneeweiss, Sebastian, and Malcolm Maclure. 2000. “Use of Comorbidity Scores for Control of Confounding in Studies Using Administrative Databases.” International Journal of Epidemiology 29 (5): 891–98.\n\n\nVanderWeele, Tyler J. 2019. “Principles of Confounder Selection.” European Journal of Epidemiology 34: 211–19.\n\n\nVon Korff, Michael, Edward H Wagner, and Kathleen Saunders. 1992. “A Chronic Disease Score from Automated Pharmacy Data.” Journal of Clinical Epidemiology 45 (2): 197–203."
+  },
+  {
+    "objectID": "hdps.html#origin",
+    "href": "hdps.html#origin",
+    "title": "High-dimensional Propensity score",
+    "section": "Origin",
+    "text": "Origin\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n(Schneeweiss et al. 2009)"
+  },
+  {
+    "objectID": "hdps.html#key-idea",
+    "href": "hdps.html#key-idea",
+    "title": "High-dimensional Propensity score",
+    "section": "Key idea",
+    "text": "Key idea\nSchneeweiss et al. 2009 extended to a variety of classifications to code diagnoses (ICD), procedure (CPT), medications (eg, NDC, AHFS, ATCC), or others (PCP, LOINC).\n\n\n\n\n\n\n\n\n\n\n\nCPT-4 (Current Procedural Terminology, 4th edition), ICD-9 (International Classification of Diseases, 9th edition), PCP visits (Primary Care Physician visits), NDC (National Drug Code), and ATC (Anatomical Therapeutic Chemical classification) are all codes or measures commonly used in healthcare and medical research.\nSchneeweiss et al. 2018 Clinical Epidemiology: CC BY license\n\n\n(Schneeweiss 2018)\n\n\n\n\n\n\nAdjust useful proxies\n\n\n\nIn administrative data sources, the main idea of hdPS (high-dimensional propensity score) is to adjust for proxies that are empirically associated with the outcome of interest, which may not be directly measured in the data.\n\n\n\n\nWith hdPS, users do not need to know which unmeasured confounders are being adjusted for by proxy information.\n\nAdjusting for something that may not be interpretable directly with the context of the research question.\nLogic: measures from same subject should be correlated = has relevant proxy information\n\n\n\n\n\nSchneeweiss, Sebastian. 2018. “Automated Data-Adaptive Analytics for Electronic Healthcare Data to Study Causal Treatment Effects.” Clinical Epidemiology, 771–88.\n\n\nSchneeweiss, Sebastian, Jeremy A Rassen, Robert J Glynn, Jerry Avorn, Helen Mogun, and M Alan Brookhart. 2009. “High-Dimensional Propensity Score Adjustment in Studies of Treatment Effects Using Health Care Claims Data.” Epidemiology (Cambridge, Mass.) 20 (4): 512."
+  },
+  {
+    "objectID": "step0.html#merge-2013-18-datasets",
+    "href": "step0.html#merge-2013-18-datasets",
+    "title": "3  Step 0: Analytic data",
+    "section": "3.1 Merge 2013-18 datasets",
+    "text": "3.1 Merge 2013-18 datasets\nData from 3 cycles are merged based on available covariates.\n\n\n\n\n\nOnly complete cases retained, and survey features/weights were ignored for simplicity."
+  },
+  {
+    "objectID": "step0.html#summary-statistics",
+    "href": "step0.html#summary-statistics",
+    "title": "3  Step 0: Analytic data",
+    "section": "3.2 Summary statistics",
+    "text": "3.2 Summary statistics\n\n\n\n\n\n\n\nNo(N=8087)\nYes(N=5418)\nOverall(N=13505)\n\n\n\n\nage.cat\n\n\n\n\n\n20-49\n4076 (50.4%)\n2649 (48.9%)\n6725 (49.8%)\n\n\n50-64\n2048 (25.3%)\n1558 (28.8%)\n3606 (26.7%)\n\n\n65+\n1963 (24.3%)\n1211 (22.4%)\n3174 (23.5%)\n\n\nsex\n\n\n\n\n\nMale\n4125 (51.0%)\n2352 (43.4%)\n6477 (48.0%)\n\n\nFemale\n3962 (49.0%)\n3066 (56.6%)\n7028 (52.0%)\n\n\neducation\n\n\n\n\n\nLess than high school\n1609 (19.9%)\n1132 (20.9%)\n2741 (20.3%)\n\n\nHigh school\n4111 (50.8%)\n3237 (59.7%)\n7348 (54.4%)\n\n\nCollege graduate or above\n2367 (29.3%)\n1049 (19.4%)\n3416 (25.3%)\n\n\nrace\n\n\n\n\n\nWhite\n3159 (39.1%)\n2086 (38.5%)\n5245 (38.8%)\n\n\nBlack\n1420 (17.6%)\n1338 (24.7%)\n2758 (20.4%)\n\n\nHispanic\n1780 (22.0%)\n1540 (28.4%)\n3320 (24.6%)\n\n\nOthers\n1728 (21.4%)\n454 (8.4%)\n2182 (16.2%)\n\n\nmarital\n\n\n\n\n\nNever married\n1519 (18.8%)\n916 (16.9%)\n2435 (18.0%)\n\n\nMarried/with partner\n4924 (60.9%)\n3227 (59.6%)\n8151 (60.4%)\n\n\nOther\n1644 (20.3%)\n1275 (23.5%)\n2919 (21.6%)\n\n\nincome\n\n\n\n\n\nless than $20,000\n1524 (18.8%)\n1091 (20.1%)\n2615 (19.4%)\n\n\n$20,000 to $74,999\n4058 (50.2%)\n2966 (54.7%)\n7024 (52.0%)\n\n\n$75,000 and Over\n2505 (31.0%)\n1361 (25.1%)\n3866 (28.6%)\n\n\nborn\n\n\n\n\n\nBorn in US\n5247 (64.9%)\n4193 (77.4%)\n9440 (69.9%)\n\n\nOther place\n2840 (35.1%)\n1225 (22.6%)\n4065 (30.1%)\n\n\nyear\n\n\n\n\n\nMean (SD)\n8.93 (0.812)\n8.99 (0.809)\n8.95 (0.812)\n\n\nMedian [Min, Max]\n9.00 [8.00, 10.0]\n9.00 [8.00, 10.0]\n9.00 [8.00, 10.0]\n\n\ndiabetes.family.history\n\n\n\n\n\nNo\n6739 (83.3%)\n4087 (75.4%)\n10826 (80.2%)\n\n\nYes\n1348 (16.7%)\n1331 (24.6%)\n2679 (19.8%)\n\n\nsmoking\n\n\n\n\n\nNever smoker\n4654 (57.5%)\n3074 (56.7%)\n7728 (57.2%)\n\n\nPrevious smoker\n1795 (22.2%)\n1435 (26.5%)\n3230 (23.9%)\n\n\nCurrent smoker\n1638 (20.3%)\n909 (16.8%)\n2547 (18.9%)\n\n\ndiet.healthy\n\n\n\n\n\nPoor or fair\n1981 (24.5%)\n2261 (41.7%)\n4242 (31.4%)\n\n\nGood\n3346 (41.4%)\n2153 (39.7%)\n5499 (40.7%)\n\n\nVery good or excellent\n2760 (34.1%)\n1004 (18.5%)\n3764 (27.9%)\n\n\nphysical.activity\n\n\n\n\n\nNo\n6445 (79.7%)\n4167 (76.9%)\n10612 (78.6%)\n\n\nYes\n1642 (20.3%)\n1251 (23.1%)\n2893 (21.4%)\n\n\nmedical.access\n\n\n\n\n\nNo\n1546 (19.1%)\n762 (14.1%)\n2308 (17.1%)\n\n\nYes\n6541 (80.9%)\n4656 (85.9%)\n11197 (82.9%)\n\n\nsleep\n\n\n\n\n\nMean (SD)\n7.41 (1.53)\n7.32 (1.61)\n7.37 (1.56)\n\n\nMedian [Min, Max]\n7.50 [2.00, 14.5]\n7.00 [2.00, 14.0]\n7.50 [2.00, 14.5]\n\n\nsystolicBP\n\n\n\n\n\nMean (SD)\n123 (18.8)\n127 (17.3)\n125 (18.4)\n\n\nMedian [Min, Max]\n119 [64.7, 229]\n125 [74.0, 234]\n122 [64.7, 234]\n\n\ndiastolicBP\n\n\n\n\n\nMean (SD)\n70.0 (11.3)\n72.2 (11.8)\n70.9 (11.6)\n\n\nMedian [Min, Max]\n70.0 [8.00, 123]\n72.0 [26.0, 125]\n70.7 [8.00, 125]\n\n\nuric.acid\n\n\n\n\n\nMean (SD)\n5.20 (1.37)\n5.77 (1.49)\n5.43 (1.45)\n\n\nMedian [Min, Max]\n5.10 [0.700, 12.3]\n5.70 [1.60, 18.0]\n5.30 [0.700, 18.0]\n\n\nprotein.total\n\n\n\n\n\nMean (SD)\n7.14 (0.466)\n7.11 (0.449)\n7.13 (0.459)\n\n\nMedian [Min, Max]\n7.10 [4.70, 10.2]\n7.10 [5.20, 9.40]\n7.10 [4.70, 10.2]\n\n\nbilirubin.total\n\n\n\n\n\nMean (SD)\n0.581 (0.302)\n0.511 (0.288)\n0.553 (0.298)\n\n\nMedian [Min, Max]\n0.500 [0, 3.30]\n0.500 [0, 7.10]\n0.500 [0, 7.10]\n\n\nphosphorus\n\n\n\n\n\nMean (SD)\n3.72 (0.560)\n3.65 (0.575)\n3.69 (0.567)\n\n\nMedian [Min, Max]\n3.70 [1.00, 9.60]\n3.60 [1.70, 8.90]\n3.70 [1.00, 9.60]\n\n\nsodium\n\n\n\n\n\nMean (SD)\n140 (2.47)\n139 (2.52)\n140 (2.49)\n\n\nMedian [Min, Max]\n140 [124, 161]\n139 [119, 154]\n140 [119, 161]\n\n\npotassium\n\n\n\n\n\nMean (SD)\n4.00 (0.361)\n4.02 (0.356)\n4.01 (0.359)\n\n\nMedian [Min, Max]\n4.00 [2.63, 6.00]\n4.00 [2.60, 6.60]\n4.00 [2.60, 6.60]\n\n\nglobulin\n\n\n\n\n\nMean (SD)\n2.87 (0.449)\n3.00 (0.452)\n2.92 (0.455)\n\n\nMedian [Min, Max]\n2.80 [1.60, 6.50]\n3.00 [1.40, 5.70]\n2.90 [1.40, 6.50]\n\n\ncalcium.total\n\n\n\n\n\nMean (SD)\n9.39 (0.366)\n9.32 (0.370)\n9.36 (0.369)\n\n\nMedian [Min, Max]\n9.40 [6.40, 14.8]\n9.30 [6.60, 12.0]\n9.40 [6.40, 14.8]\n\n\nhigh.cholesterol\n\n\n\n\n\nNo\n5436 (67.2%)\n3271 (60.4%)\n8707 (64.5%)\n\n\nYes\n2651 (32.8%)\n2147 (39.6%)\n4798 (35.5%)\n\n\n\n\n\n\n\n\n\n\nInvestigator specified covariates stratified by the exposure (obesity)"
+  },
+  {
+    "objectID": "step1.html#identify-the-data-dimensions-proxy-sources",
+    "href": "step1.html#identify-the-data-dimensions-proxy-sources",
+    "title": "4  Step 1: Proxy sources",
+    "section": "4.1 Identify the data dimensions (proxy sources)",
+    "text": "4.1 Identify the data dimensions (proxy sources)\nIn this example we only have prescription domain (1 domain dx of ICD-10-CM code). Hence \\(p = 1\\) in this exercise.\n\n\nNHANES Questionnaire collects information on: (a) dietary supplements, (b) nonprescription antacids, (c) prescription medications, and (d) preventive aspirin use."
+  },
+  {
+    "objectID": "step1.html#define-a-covariate-assessment-period-cap",
+    "href": "step1.html#define-a-covariate-assessment-period-cap",
+    "title": "4  Step 1: Proxy sources",
+    "section": "4.2 Define a covariate assessment period (CAP)",
+    "text": "4.2 Define a covariate assessment period (CAP)\n\n\n\n\n\n\n\n\n\n\n\n(Connolly et al. 2019; Schneeweiss et al. 2009)\nWe only collect proxy information from a well-defined CAP. In our case, it was \\(30\\) days.\n\n\nNHANES asked “In the past 30 days, have you used or taken medication for which a prescription is needed? Do not include prescription vitamins or minerals you may have already told me about.”"
+  },
+  {
+    "objectID": "step1.html#merge-all-proxy-sources-into-one-data",
+    "href": "step1.html#merge-all-proxy-sources-into-one-data",
+    "title": "4  Step 1: Proxy sources",
+    "section": "4.3 Merge all proxy sources into one data",
+    "text": "4.3 Merge all proxy sources into one data\nWe merge proxy data (ICD-10 codes) from 3 cycles."
+  },
+  {
+    "objectID": "step1.html#omit-duplicated-information",
+    "href": "step1.html#omit-duplicated-information",
+    "title": "4  Step 1: Proxy sources",
+    "section": "4.4 Omit duplicated information",
+    "text": "4.4 Omit duplicated information\n\n\nWe need to delete codes that could be close proxies of exposure and/or outcome, or other investigator specified covariates we have already selected in step0."
+  },
+  {
+    "objectID": "step1.html#long-format-proxy-data",
+    "href": "step1.html#long-format-proxy-data",
+    "title": "4  Step 1: Proxy sources",
+    "section": "4.5 Long format proxy data",
+    "text": "4.5 Long format proxy data\n\n\n\n\n\n\nHere is an example of 3 digit codes for 1 patient with subject ID “100001”. We create the same for all patients.\n\n\n\n\n \n  \n    ID \n    ICD 10 codes (3 digit) \n    Description \n  \n \n\n  \n    100001 \n    F33 \n    Major depressive disorder, recurrent \n  \n  \n    100001 \n    I10 \n    Hypertension \n  \n  \n    100001 \n    M62 \n    Muscle spasm \n  \n  \n    100001 \n    F32 \n    Major depressive disorder, single episode \n  \n  \n    100001 \n    M25 \n    Joint disorder/pain \n  \n  \n    100001 \n    K21 \n    Gastro-esophageal reflux disease \n  \n  \n    100001 \n    M79 \n    musculoskeletal pain conditions \n  \n  \n    100001 \n    R12 \n    Heartburn"
+  },
+  {
+    "objectID": "step1.html#merge-proxy-data-with-analytic-data",
+    "href": "step1.html#merge-proxy-data-with-analytic-data",
+    "title": "4  Step 1: Proxy sources",
+    "section": "4.6 Merge Proxy data with Analytic data",
+    "text": "4.6 Merge Proxy data with Analytic data\n\n\n\n\n  \n\n\n\n\n\n\n\nConnolly, John G, Sebastian Schneeweiss, Robert J Glynn, and Joshua J Gagne. 2019. “Quantifying Bias Reduction with Fixed-Duration Versus All-Available Covariate Assessment Periods.” Pharmacoepidemiology and Drug Safety 28 (5): 665–70.\n\n\nSchneeweiss, Sebastian, Jeremy A Rassen, Robert J Glynn, Jerry Avorn, Helen Mogun, and M Alan Brookhart. 2009. “High-Dimensional Propensity Score Adjustment in Studies of Treatment Effects Using Health Care Claims Data.” Epidemiology (Cambridge, Mass.) 20 (4): 512."
+  },
+  {
+    "objectID": "step2.html#sort-by-prevalence",
+    "href": "step2.html#sort-by-prevalence",
+    "title": "5  Step 2: Empirical",
+    "section": "5.1 Sort by prevalence",
+    "text": "5.1 Sort by prevalence\nCheck out the frequency of each codes: Here is the list of top 10:\n\n\n\n\nICD10 Code Frequencies\n \n  \n    ICD10 Code \n    Count \n  \n \n\n  \n    I10 \n    5742 \n  \n  \n    E78 \n    2965 \n  \n  \n    F32 \n    1135 \n  \n  \n    F41 \n    1090 \n  \n  \n    K21 \n    911 \n  \n  \n    M79 \n    870 \n  \n  \n    E03 \n    807 \n  \n  \n    M54 \n    772 \n  \n  \n    G47 \n    697 \n  \n  \n    J45 \n    626 \n  \n\n\n\n\n\nHowever, some may be associated with lower counts (e.g., less than 20).\n\n\n\n\n\n\nRestrictions\n\n\n\nCandidate empirical covariates list is constrained by\n\ntheir prevalence of codes. Only top n covariates with highest prevalence would be chosen.\nanalysts absolutely need to get rid of the codes that have zero variance (e.g., everyone has the code, or nobody has it).\ncodes associated with very low prevalence are also numerically problematic for further analyses.\n\n\n\n\n\nWe choose n = 200 [for (1)] as it was proposed in the original algorithm (Schneeweiss et al. 2009). In reality, this is not necessary to be so restrictive (Schuster, Pang, and Platt 2015). Parts (2) and (3) are more likely and addressed by the following restriction: At least min_num_patients number of patients need to have that code to be selected in the list.\nIf there were more dimensions, separate list of candidate empirical covariates would be identified."
+  },
+  {
+    "objectID": "step2.html#choose-granularity",
+    "href": "step2.html#choose-granularity",
+    "title": "5  Step 2: Empirical",
+    "section": "5.2 Choose Granularity",
+    "text": "5.2 Choose Granularity\nOne important point here is that we have chosen granularity to be 3 digits in the ICD-10 code.\n\n\nWe have already truncated the codes at 3 digit level while preparing the data."
+  },
+  {
+    "objectID": "step2.html#retain-top-n-empirical-covariates",
+    "href": "step2.html#retain-top-n-empirical-covariates",
+    "title": "5  Step 2: Empirical",
+    "section": "5.3 Retain top n empirical covariates",
+    "text": "5.3 Retain top n empirical covariates\n\nstep1 <- suppressMessages(get_candidate_covariates(df = dfx,  \n                                  domainVarname = \"domain\",\n                                  eventCodeVarname = \"icd10\", \n                                  patientIdVarname = \"idx\",\n                                  patientIdVector = patientIds,\n                                  n = 200, \n                                  min_num_patients = 20))\n\n\n\nYou can use autoCovariateSelection package to implement these restrictions (Robert 2020).\n\n\n\n\n  \n\n\n\n\n\n\n\nRobert, Dennis. 2020. autoCovariateSelection: Automatic Covariate Selection. https://CRAN.R-project.org/package=autoCovariateSelection.\n\n\nSchneeweiss, Sebastian, Jeremy A Rassen, Robert J Glynn, Jerry Avorn, Helen Mogun, and M Alan Brookhart. 2009. “High-Dimensional Propensity Score Adjustment in Studies of Treatment Effects Using Health Care Claims Data.” Epidemiology (Cambridge, Mass.) 20 (4): 512.\n\n\nSchuster, Tibor, Menglan Pang, and Robert W Platt. 2015. “On the Role of Marginal Confounder Prevalence–Implications for the High-Dimensional Propensity Score Algorithm.” Pharmacoepidemiology and Drug Safety 24 (9): 1004–7."
+  },
+  {
+    "objectID": "step3.html#genrate-recurrence-covariates",
+    "href": "step3.html#genrate-recurrence-covariates",
+    "title": "6  Step 3: Recurrence",
+    "section": "6.1 Genrate recurrence covariates",
+    "text": "6.1 Genrate recurrence covariates\n\n\n\n\n\n(Schneeweiss et al. 2009)\nIn this step, we generate 3 binary recurrence covariates for each of the candidate empirical covariates identified in the previous step:\n\noccurred at least once\noccurred sporadically (at least more than the median)\noccurred frequently (at least more than the 75th percentile)\n\n\nstep2 <- get_recurrence_covariates(df = out1, \n                                   patientIdVarname = \"idx\",\n                                   eventCodeVarname = \"icd10\", \n                                   patientIdVector = patientIds)"
+  },
+  {
+    "objectID": "step3.html#example-of-recurrence-covariates",
+    "href": "step3.html#example-of-recurrence-covariates",
+    "title": "6  Step 3: Recurrence",
+    "section": "6.2 Example of recurrence covariates",
+    "text": "6.2 Example of recurrence covariates\n\n\n\n\n\n\n\n\n\n\n\nICD-10-CM code (dimension 1)\ncode appeared at least once\ncode appeared at least more than the median\ncode appeared at least more than the 75th percentile\n\n\n\n\nD64.9 Anemia\nrec_dx_D64_once\nrec_dx_D64_sporadic\nrec_dx_D64_frequent\n\n\nD75.9P Blood clots\nrec_dx_D75_once\nrec_dx_D75_sporadic\nrec_dx_D75_frequent\n\n\nD89.9 Immune disorder\nrec_dx_D89_once\nrec_dx_D89_sporadic\nrec_dx_D89_frequent\n\n\n\\(\\ldots\\)\n\\(\\ldots\\)\n\\(\\ldots\\)\n\\(\\ldots\\)\n\n\nE07.9 Disorder of thyroid\nrec_dx_E07_once\nrec_dx_E07_sporadic\nrec_dx_E07_frequent\n\n\n\n\n\nExample of 3 binary covariates created based on the candidate empirical covariate"
+  },
+  {
+    "objectID": "step3.html#recurrence-covariates-in-the-data",
+    "href": "step3.html#recurrence-covariates-in-the-data",
+    "title": "6  Step 3: Recurrence",
+    "section": "6.3 Recurrence covariates in the data",
+    "text": "6.3 Recurrence covariates in the data\n\n\n\n\n  \n\n\n\n\n\nHere we show binary recurrence covariates for only 2 columns"
+  },
+  {
+    "objectID": "step3.html#refined-recurrence-covariates",
+    "href": "step3.html#refined-recurrence-covariates",
+    "title": "6  Step 3: Recurrence",
+    "section": "6.4 Refined recurrence covariates",
+    "text": "6.4 Refined recurrence covariates\nBelow you can click to see a list of all recurrence covariates obtained in our data.\n\n\nShow/Hide Table\n\n\n\n\nICD-10 Recurrence Data\n\n\n1\nrec_dx_A49_once\nrec_dx_B00_once\nrec_dx_B20_once\n\n\n2\nrec_dx_B20_frequent\nrec_dx_B35_once\nrec_dx_B37_once\n\n\n3\nrec_dx_B96_once\nrec_dx_C50_once\nrec_dx_D75_once\n\n\n4\nrec_dx_E03_once\nrec_dx_E04_once\nrec_dx_E05_once\n\n\n5\nrec_dx_E07_once\nrec_dx_E28_once\nrec_dx_E28_frequent\n\n\n6\nrec_dx_E29_once\nrec_dx_E78_once\nrec_dx_E79_once\n\n\n7\nrec_dx_E87_once\nrec_dx_F17_once\nrec_dx_F20_once\n\n\n8\nrec_dx_F20_frequent\nrec_dx_F29_once\nrec_dx_F31_once\n\n\n9\nrec_dx_F31_frequent\nrec_dx_F32_once\nrec_dx_F39_once\n\n\n10\nrec_dx_F41_once\nrec_dx_F43_once\nrec_dx_F90_once\n\n\n11\nrec_dx_G20_once\nrec_dx_G20_frequent\nrec_dx_G25_once\n\n\n12\nrec_dx_G30_once\nrec_dx_G30_frequent\nrec_dx_G31_once\n\n\n13\nrec_dx_G40_once\nrec_dx_G43_once\nrec_dx_G47_once\n\n\n14\nrec_dx_G89_once\nrec_dx_H04_once\nrec_dx_H10_once\n\n\n15\nrec_dx_H40_once\nrec_dx_H40_frequent\nrec_dx_H57_once\n\n\n16\nrec_dx_H57_frequent\nrec_dx_H66_once\nrec_dx_I10_once\n\n\n17\nrec_dx_I10_frequent\nrec_dx_I20_once\nrec_dx_I21_once\n\n\n18\nrec_dx_I48_once\nrec_dx_I48_frequent\nrec_dx_I49_once\n\n\n19\nrec_dx_I50_once\nrec_dx_I50_frequent\nrec_dx_I51_once\n\n\n20\nrec_dx_I63_once\nrec_dx_I70_once\nrec_dx_I80_once\n\n\n21\nrec_dx_I99_once\nrec_dx_J01_once\nrec_dx_J02_once\n\n\n22\nrec_dx_J20_once\nrec_dx_J30_once\nrec_dx_J40_once\n\n\n23\nrec_dx_J42_once\nrec_dx_J43_once\nrec_dx_J43_frequent\n\n\n24\nrec_dx_J44_once\nrec_dx_J44_frequent\nrec_dx_J45_once\n\n\n25\nrec_dx_J45_frequent\nrec_dx_J98_once\nrec_dx_K04_once\n\n\n26\nrec_dx_K08_once\nrec_dx_K21_once\nrec_dx_K25_once\n\n\n27\nrec_dx_K27_once\nrec_dx_K30_once\nrec_dx_K31_once\n\n\n28\nrec_dx_K58_once\nrec_dx_K59_once\nrec_dx_K76_once\n\n\n29\nrec_dx_K92_once\nrec_dx_L08_once\nrec_dx_L20_once\n\n\n30\nrec_dx_L23_once\nrec_dx_L29_once\nrec_dx_L40_once\n\n\n31\nrec_dx_L70_once\nrec_dx_L93_once\nrec_dx_L93_frequent\n\n\n32\nrec_dx_M06_once\nrec_dx_M06_frequent\nrec_dx_M10_once\n\n\n33\nrec_dx_M13_once\nrec_dx_M19_once\nrec_dx_M1A_once\n\n\n34\nrec_dx_M25_once\nrec_dx_M54_once\nrec_dx_M62_once\n\n\n35\nrec_dx_M79_once\nrec_dx_M81_once\nrec_dx_N19_once\n\n\n36\nrec_dx_N20_once\nrec_dx_N28_once\nrec_dx_N30_once\n\n\n37\nrec_dx_N32_once\nrec_dx_N39_once\nrec_dx_N40_once\n\n\n38\nrec_dx_N42_once\nrec_dx_N52_once\nrec_dx_N92_once\n\n\n39\nrec_dx_N94_once\nrec_dx_N95_once\nrec_dx_R00_once\n\n\n40\nrec_dx_R05_once\nrec_dx_R06_once\nrec_dx_R07_once\n\n\n41\nrec_dx_R09_once\nrec_dx_R10_once\nrec_dx_R11_once\n\n\n42\nrec_dx_R12_once\nrec_dx_R19_once\nrec_dx_R21_once\n\n\n43\nrec_dx_R25_once\nrec_dx_R32_once\nrec_dx_R35_once\n\n\n44\nrec_dx_R39_once\nrec_dx_R41_once\nrec_dx_R42_once\n\n\n45\nrec_dx_R45_once\nrec_dx_R51_once\nrec_dx_R52_once\n\n\n46\nrec_dx_R60_once\nrec_dx_R73_once\nrec_dx_T14_once\n\n\n47\nrec_dx_T78_once\nrec_dx_T88_once\nrec_dx_Z79_once\n\n\n48\nrec_dx_Z95_once\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nTip\n\n\n\n\nGiven that we had one dimension of proxy data, \\(p=1\\), at most \\(n=200\\) most prevalent codes (with the restriction that minimum number of patients in each code = 20), and \\(3\\) intensity, we could theoretically have at most \\(p \\times n \\times 3 = 1 \\times 200 \\times \\ 3 = 600\\) recurrence covariates.\n\n\n\n\nBased on all of the restrictions, we created 143 distinct recurrence covariates.\nThe merged data (analytic and proxies) size is now 7,585.\n\n\n\n\n\nIf 2 or all 3 recurrence covariates are identical, only one distinct recurrence covariate is returned. This is why you do not see any sporadic recurrence covariate here.\n\n\nSchneeweiss, Sebastian, Jeremy A Rassen, Robert J Glynn, Jerry Avorn, Helen Mogun, and M Alan Brookhart. 2009. “High-Dimensional Propensity Score Adjustment in Studies of Treatment Effects Using Health Care Claims Data.” Epidemiology (Cambridge, Mass.) 20 (4): 512."
+  },
+  {
+    "objectID": "step4.html#bross-formula",
+    "href": "step4.html#bross-formula",
+    "title": "7  Step 4: Prioritize",
+    "section": "7.1 Bross formula",
+    "text": "7.1 Bross formula\nWe need to make an educated guess about 3 components (i.e., make an assumption), that are used in the calculation of bias contributed by not adjusting for a covariate based on Bross (1966) formula:\n\n\nBross formula (Bross 1966; Schneeweiss 2006) for the Bias Multiplier considers both the imbalance in the prevalence of the unmeasured confounder between the exposure groups and the association between the confounder and the outcome to assess the potential bias.\n\nprevalence of a binary unmeasured confounder (\\(U\\)) among exposed (\\(P_{UA_1}\\))\nprevalence of that binary unmeasured confounder among unexposed (\\(P_{UA_0}\\))\nassociation between that binary unmeasured confounder and the outcome (\\(RR_{UY} = \\frac{P_{UY_1}}{P_{UY_1}}\\))\n\nThe above components can help us calculate \\(bias\\) amount (known as ‘Bias Multiplier’) using the Bross formula when we omit adjusting for \\(U\\):\n\\[\\text{Bias}_U = \\frac{P_{UA_1} (RR_{UY} - 1) + 1}{P_{UA_0} (RR_{UY} - 1) + 1}\\]\n\n\nThese are the ingredients of the Bross formula. This formula is helpful for understanding the impact of unmeasured confounding of a binary variable. We have to put assumed prevalence and risk ratio associated with an unmeasured confounder."
+  },
+  {
+    "objectID": "step4.html#calculating-bias-from-a-recurrence-covariate",
+    "href": "step4.html#calculating-bias-from-a-recurrence-covariate",
+    "title": "7  Step 4: Prioritize",
+    "section": "7.2 Calculating bias from a recurrence covariate",
+    "text": "7.2 Calculating bias from a recurrence covariate\nFor recurrence covariates (\\(R\\)), we do not need to assume, we just plug-in \\(R\\) instead of \\(U\\) in the following calculations:\n\nprevalence of a binary recurrence variable among exposed (\\(P_{RA_1}\\))\nprevalence of that binary recurrence variable among unexposed (\\(P_{RA_0}\\))\nassociation between that binary recurrence variable and the outcome (\\(RR_{RY} = \\frac{P_{RY_1}}{P_{RY_1}}\\))\n\nThese components can help us empirically calculate \\(bias\\) amount:\n\\[\\text{Bias}_R = \\frac{P_{RA_1} (RR_{RY} - 1) + 1}{P_{RA_0} (RR_{RY} - 1) + 1}\\]\nHere, \\(RR_{RY}\\) is the crude risk ratio between the recurrence covariate and the outcome, \\(Y\\) is the outcome, \\(A\\) is the exposure, and \\(R\\) is a recurrence covariate.\n\n\nFor recurrence covariates, we do not need to assume, we can basically calculate these numbers (\\(log-absolute-bias\\)) for all of the recurrence covariates (Schneeweiss et al. 2009). For each data dimension, we can rank each of the recurrence covariates based on the amount of bias (confounding or imbalance) it could likely adjust."
+  },
+  {
+    "objectID": "step4.html#calculating-bias-from-all-recurrence-covariates",
+    "href": "step4.html#calculating-bias-from-all-recurrence-covariates",
+    "title": "7  Step 4: Prioritize",
+    "section": "7.3 Calculating bias from all recurrence covariates",
+    "text": "7.3 Calculating bias from all recurrence covariates\nIn our example, we simply plug-in each recurrence covariates one-by-one to calculate \\(log-absolute-bias\\):\n\n\n\n\n\nR=rec_dx_D64_once\n\n\nR=rec_dx_D75_sporadic\n\n\n…\n\n\nR=rec_dx_E07_frequent"
+  },
+  {
+    "objectID": "step4.html#obtain-log-of-absolute-bias",
+    "href": "step4.html#obtain-log-of-absolute-bias",
+    "title": "7  Step 4: Prioritize",
+    "section": "7.4 Obtain log of absolute-bias",
+    "text": "7.4 Obtain log of absolute-bias\nWe calculate \\(log-absolute-bias\\) for all recurrence covariates.\n\n\nAbsolute log of the Bias Multiplier, \\(log-absolute-bias\\), is a symmetric measure of the potential bias introduced by the recurrence covariate, making it easier to compare and rank recurrence covariates.\n\nout3 <- get_prioritised_covariates(df = out2,\n                                   patientIdVarname = \"idx\", \n                                   exposureVector = basetable$exposure,\n                                   outcomeVector = basetable$outcome,\n                                   patientIdVector = patientIds, \n                                   k = 100)\n\nThis would return absolute log of the multiplicative bias for each recurrence covariate (by univariate Bross formula). We can use this information to prioritize recurrence covariates in the next step."
+  },
+  {
+    "objectID": "step4.html#convert-to-absolute-log-of-multiplicative-bias",
+    "href": "step4.html#convert-to-absolute-log-of-multiplicative-bias",
+    "title": "7  Step 4: Prioritize",
+    "section": "7.5 Convert to Absolute log of multiplicative bias",
+    "text": "7.5 Convert to Absolute log of multiplicative bias\nHere are the few covariates and associated Absolute log of the multiplicative bias:\n\n\n\n\n\nrec_dx_I10_once : 0.115\n\n\nrec_dx_R73_once : 0.088\n\n\nrec_dx_I10_frequent : 0.068\n\n\nrec_dx_R60_once : 0.054\n\n\nrec_dx_E78_once : 0.038\n\n\nrec_dx_M79_once : 0.017\n\n\nrec_dx_E87_once : 0.015\n\n\nrec_dx_I51_once : 0.013\n\n\nrec_dx_I50_once : 0.011\n\n\n\n\n\nAnd here are translated table with description:\n\n\n\n\n\nHypertension : 0.115\n\n\nElevated blood glucose level : 0.088\n\n\nHypertension : 0.068\n\n\nEdema : 0.054\n\n\nPure hypercholesterolemia : 0.038\n\n\nmusculoskeletal pain : 0.017\n\n\nHypokalemia : 0.015\n\n\nHeart disease : 0.013\n\n\nHeart failure : 0.011\n\n\n\n\n\n\n\n(Choi and Shi 2001)\n\n\n\n\n\n\n\n\n\nSMD vs Bias multiplier\n\n\n\nStandardized mean difference (SMD) is useful for assessing the balance in the propensity score literature. However, Bross formula incorporates outcome information. In the investigation of empirical covariates or recurrence covariates where interpretations of these covariates are unknown, it may seem more safe to use the multiplicative bias term from the Bross formula to identify proxy covariates that are helpful in predicting the outcome.\n\n\n\n\n\n\n(Stuart, Lee, and Leacy 2013)\n\n\nBross, Irwin DJ. 1966. “Spurious Effects from an Extraneous Variable.” Journal of Chronic Diseases 19 (6): 637–47.\n\n\nChoi, BCK, and F Shi. 2001. “Risk Factors for Diabetes Mellitus by Age and Sex: Results of the National Population Health Survey.” Diabetologia 44: 1221–31.\n\n\nSchneeweiss, Sebastian. 2006. “Sensitivity Analysis and External Adjustment for Unmeasured Confounders in Epidemiologic Database Studies of Therapeutics.” Pharmacoepidemiology and Drug Safety 15 (5): 291–303.\n\n\nSchneeweiss, Sebastian, Jeremy A Rassen, Robert J Glynn, Jerry Avorn, Helen Mogun, and M Alan Brookhart. 2009. “High-Dimensional Propensity Score Adjustment in Studies of Treatment Effects Using Health Care Claims Data.” Epidemiology (Cambridge, Mass.) 20 (4): 512.\n\n\nStuart, Elizabeth A, Brian K Lee, and Finbarr P Leacy. 2013. “Prognostic Score–Based Balance Measures Can Be a Useful Diagnostic for Propensity Score Methods in Comparative Effectiveness Research.” Journal of Clinical Epidemiology 66 (8): S84–90."
+  },
+  {
+    "objectID": "step5.html#ideal-number-of-prioritised-covariates",
+    "href": "step5.html#ideal-number-of-prioritised-covariates",
+    "title": "8  Step 5: Covariates",
+    "section": "8.1 Ideal number of prioritised covariates",
+    "text": "8.1 Ideal number of prioritised covariates\nBased on calculated \\(log-absolute-bias\\), we select top k recurrence covariates to be used in the hdPS analyses later. Below is a plot of all of the absolute log of the Bias Multiplier:\n\n\n\n\n\n\n\n\n\nWe used \\(k = 100\\) covariates selected by the hdPS algorithm (we call them ‘hdPS covariates’). What should be the cutpoint?\n\n\nAbsolute log of the Bias Multiplier has a null value of 0. Anything above 0 is an indication of confounding bias adjusted by the adjustment of the associated recurrent covariate. For large proxy data sources, \\(k = 500\\) is suggested (Schneeweiss et al. 2009)."
+  },
+  {
+    "objectID": "step5.html#investigator-specified-covariates",
+    "href": "step5.html#investigator-specified-covariates",
+    "title": "8  Step 5: Covariates",
+    "section": "8.2 Investigator-specified covariates",
+    "text": "8.2 Investigator-specified covariates\n\\(25\\) investigator-specified covariates are selected based on variables in the DAG that are available in the data set.\n\n\nWe should also add necessary interactions of these investigator-specified covariates, or add other useful model-specifications (e.g., polynomials).\n\n\n\n\n\nHypothesized Directed acyclic graph drawn based on analyst’s best understanding of the literature\n\n\n\n\n\n\n\n14 demographic, behavioral, health history related variables\n\nMostly categorical\n\n11 lab variables\n\nMostly continuous"
+  },
+  {
+    "objectID": "step5.html#hdps-model",
+    "href": "step5.html#hdps-model",
+    "title": "8  Step 5: Covariates",
+    "section": "8.3 hdPS model",
+    "text": "8.3 hdPS model\n\n\n\n\n\n\n\n\n\n\n\nC = investigator-specified covariates and EC = hdPS covariates (Schneeweiss et al. 2009)\nThen the hdPS can be used as matching, weighting, stratifying variables, or as covariates (usuallly in deciles) in outcome model.\n\n\n\n\n(Wyss et al. 2022)\n\n\nSchneeweiss, Sebastian, Jeremy A Rassen, Robert J Glynn, Jerry Avorn, Helen Mogun, and M Alan Brookhart. 2009. “High-Dimensional Propensity Score Adjustment in Studies of Treatment Effects Using Health Care Claims Data.” Epidemiology (Cambridge, Mass.) 20 (4): 512.\n\n\nWyss, Richard, Chen Yanover, Tal El-Hay, Dimitri Bennett, Robert W Platt, Andrew R Zullo, Grammati Sari, et al. 2022. “Machine Learning for Improving High-Dimensional Proxy Confounder Adjustment in Healthcare Database Studies: An Overview of the Current Literature.” Pharmacoepidemiology and Drug Safety 31 (9): 932–43."
+  },
+  {
+    "objectID": "extension.html#issues-with-hdps",
+    "href": "extension.html#issues-with-hdps",
+    "title": "Alternatives",
+    "section": "Issues with hdPS",
+    "text": "Issues with hdPS\n\n\n\n\n\n\nUnivariate selection of many proxies\n\n\n\n\nRecurrent covariates selected separately / univariately\ncan be correlated (coming from same patient) and cause multicollinearity\nmay inflate variance\nGeneral overfitting problem. Too many adjustment variables?\n\n\n\n\n\n(Franklin et al. 2015; Schuster, Lowe, and Platt 2016; Karim, Pang, and Platt 2018)"
+  },
+  {
+    "objectID": "extension.html#potential-ways-to-improve",
+    "href": "extension.html#potential-ways-to-improve",
+    "title": "Alternatives",
+    "section": "Potential ways to improve",
+    "text": "Potential ways to improve\n\nMultiple recurrent covariates could provide same information, may not be useful anymore in the presence of others. Multivariate structure could be good to consider in a single model.\nMachine learning variable selection methods could be useful to combat multicollinearity.\nSample splitting methods could be useful in combating overfitting in high dimensions.\n\n\n\n\n\nFranklin, Jessica M, Wesley Eddings, Robert J Glynn, and Sebastian Schneeweiss. 2015. “Regularized Regression Versus the High-Dimensional Propensity Score for Confounding Adjustment in Secondary Database Analyses.” American Journal of Epidemiology 182 (7): 651–59.\n\n\nKarim, Mohammad Ehsanul, Menglan Pang, and Robert W Platt. 2018. “Can We Train Machine Learning Methods to Outperform the High-Dimensional Propensity Score Algorithm?” Epidemiology 29 (2): 191–98.\n\n\nSchuster, Tibor, Wilfrid Kouokam Lowe, and Robert W Platt. 2016. “Propensity Score Model Overfitting Led to Inflated Variance of Estimated Odds Ratios.” Journal of Clinical Epidemiology 80: 97–106."
+  },
+  {
+    "objectID": "pubmed.html#pubmed",
+    "href": "pubmed.html#pubmed",
+    "title": "9  Literature",
+    "section": "9.1 PubMed",
+    "text": "9.1 PubMed\nCombination of plasmode, simulation, high-dimensional propensity provides 7 papers (searched in April 23, 2023):\n\n\n\n\n\nflowchart LR\n  A[PubMed] --> p4(Karim et al. 2018 \\nEpidemiology)\n  p4 --> ml1\n  p4 --> ml0[Hybrid]\n  A[PubMed] --> p2(Tian et al. 2018 \\nInt J Epidemiol.)\n  p2 --> ml1[Pure LASSO]\n  A[PubMed] --> p5(Wyss et al. 2018 \\nEpidemiology)\n  p5 --> sl1[vary k,\\nk=25,100:500\\nSuper \\nLearner]\n  p5 --> ct1\n  A[PubMed] --> p1(Benasseur et al. 2022 \\nPharmacoepidemiol Drug Saf. )\n  p1 --> ml2[Low k,\\nk = 10]\n  p1 --> ct1[cTMLE]\n  A[PubMed] --> p7(Neugebauer et al. 2015 \\nStat Med.)\n  p7 --> O2[time-varying \\ninterventions]\n  A[PubMed] --> p6(Franklin et al. 2015 \\nAm J Epidemiol.)\n  p6 --> ml1\n  p6 --> ml0\n  A[PubMed] --> p3(Schneeweiss et al. 2018 \\nClin Epidemiol.)\n  p3 --> O1[Review]\n  style p1 fill:#f44,stroke-width:2px,stroke:#f00,color:#fff;\n  style p3 fill:#f44,stroke-width:2px,stroke:#f00,color:#fff;\n  style p7 fill:#f44,stroke-width:2px,stroke:#f00,color:#fff;\n  style p5 fill:#ffff00,stroke-width:2px,stroke:#ffcc00,color:#000;\n  style p2 fill:#9f9,stroke-width:2px,stroke:#090,color:#000;\n  style p4 fill:#9f9,stroke-width:2px,stroke:#090,color:#000;\n  style p6 fill:#9f9,stroke-width:2px,stroke:#090,color:#000;\n\n\n\n\n\n\n\n\n\n\n\n(Benasseur et al. 2022; Tian, Schuemie, and Suchard 2018; Franklin et al. 2015; Neugebauer et al. 2015; Wyss et al. 2018; Karim, Pang, and Platt 2018; Schneeweiss 2018)"
+  },
+  {
+    "objectID": "pubmed.html#outside-of-pubmed",
+    "href": "pubmed.html#outside-of-pubmed",
+    "title": "9  Literature",
+    "section": "9.2 Outside of PubMed",
+    "text": "9.2 Outside of PubMed\n\n\n\n\n\nflowchart LR\n  S[Simulations] --> p0(Pang et al. 2016 \\nInt. J Biostat.)\n  p0 --> t1[TMLE, \\nNo \\nsuper \\nlearner]\n  D--> p00(Pang et al. 2016 \\nEpidemiology)\n  p00 --> t1\n  D[Data \\nanalysis] --> p1(Ju et al. 2019 \\nJ App Stat.)\n  p1 --> sl1[Super \\nlearner, \\nNo TMLE, \\n bias not \\nused as a\\nperformance \\nmeasure]\n  D --> p3(Schneeweiss et al. 2017 \\nEpidemiology)\n  p3 --> ml1[LASSO]\n  S --> p4(Weberpals et al. 2021 \\nEpidemiology)\n  p4 --> ml1[LASSO]\n  p4 --> ml2[Autoencoder]\n  S --> p5(Ju et al. 2019 \\nStat Meth Med Res.)\n  p5 --> t1\n  p5 --> t2[cTMLE, \\nmore about \\ntime \\ncomplexity]\n  S --> p6(Low et al. 2015 \\nJ Comp Eff Res.)\n  p6 --> ml1\n  \n  style p1 fill:#ffff00,stroke-width:2px,stroke:#ffcc00,color:#000;\n  style p4 fill:#9f9,stroke-width:2px,stroke:#090,color:#000;\n  style p3 fill:#9f9,stroke-width:2px,stroke:#090,color:#000;\n  style p6 fill:#9f9,stroke-width:2px,stroke:#090,color:#000;\n  style p5 fill:#44f,stroke-width:2px,stroke:#00f,color:#fff;\n  style p0 fill:#44f,stroke-width:2px,stroke:#00f,color:#fff;\n  style p00 fill:#44f,stroke-width:2px,stroke:#00f,color:#fff;\n\n\n\n\n\n\n\n\n\n\n\n(Pang, Schuster, Filion, Eberg, et al. 2016; Pang, Schuster, Filion, Schnitzer, et al. 2016; Ju, Gruber, et al. 2019; Ju, Combs, et al. 2019; Schneeweiss et al. 2017; Weberpals et al. 2021; Low, Gallego, and Shah 2016)"
+  },
+  {
+    "objectID": "pubmed.html#reviews-and-guidelines",
+    "href": "pubmed.html#reviews-and-guidelines",
+    "title": "9  Literature",
+    "section": "9.3 Reviews and Guidelines",
+    "text": "9.3 Reviews and Guidelines\n\n\n\n\n\nflowchart LR\n  r[Reviews] --> p1(Wyss et al. 2022 \\nPharmacoepidemiol Drug Saf.)\n  r --> p0(Schneeweiss et al. 2018 \\nClin Epidemiol.)\n  g[Guideline] --> p2(Rassen et al. 2022 \\nPharmacoepidemiol Drug Saf.)\n  g --> p3(Tazare et al. 2022 \\nPharmacoepidemiol Drug Saf.)\n  style p0 fill:#f44,stroke-width:2px,stroke:#f00,color:#fff;\n  style p1 fill:#f44,stroke-width:2px,stroke:#f00,color:#fff;\n  style p2 fill:#b03,stroke-width:2px,stroke:#600,color:#fff;\n  style p3 fill:#b03,stroke-width:2px,stroke:#600,color:#fff;\n\n\n\n\n\n\n\n\n\n\n\n(Wyss et al. 2022; Rassen et al. 2023; Tazare et al. 2022; Schneeweiss 2018)\nReview documents included some good directions, but guideline documents did not emphasize the machine learning advancements much.\n\n\n\n\n\n\nCriticism for simulations in the literature\n\n\n\n\nplasmode simulations are somewhat simplistic\nNeed simulations with model form being mis-specified\n\nwhen analyst doesn’t know exact variables\ninteractions, polynomials, more complex forms\nwhen we don’t know which variables are useful (among many variables): Potential for many noise variables when \\(k\\) is high\n\nUse of TMLE and Super learner are sub-optimal to some extent\n95% coverage probability rarely assessed\n\n\n\n\n\n\n\n\nDouble robust methods are are known to perform better under low-dimensions in real-world situations\n\n\n\nBenasseur, Imane, Denis Talbot, Madeleine Durand, Anne Holbrook, Alexis Matteau, Brian J Potter, Christel Renoux, Mireille E Schnitzer, Jean-Éric Tarride, and Jason R Guertin. 2022. “A Comparison of Confounder Selection and Adjustment Methods for Estimating Causal Effects Using Large Healthcare Databases.” Pharmacoepidemiology and Drug Safety 31 (4): 424–33.\n\n\nFranklin, Jessica M, Wesley Eddings, Robert J Glynn, and Sebastian Schneeweiss. 2015. “Regularized Regression Versus the High-Dimensional Propensity Score for Confounding Adjustment in Secondary Database Analyses.” American Journal of Epidemiology 182 (7): 651–59.\n\n\nJu, Cheng, Mary Combs, Samuel D Lendle, Jessica M Franklin, Richard Wyss, Sebastian Schneeweiss, and Mark J van der Laan. 2019. “Propensity Score Prediction for Electronic Healthcare Databases Using Super Learner and High-Dimensional Propensity Score Methods.” Journal of Applied Statistics 46 (12): 2216–36.\n\n\nJu, Cheng, Susan Gruber, Samuel D Lendle, Antoine Chambaz, Jessica M Franklin, Richard Wyss, Sebastian Schneeweiss, and Mark J van Der Laan. 2019. “Scalable Collaborative Targeted Learning for High-Dimensional Data.” Statistical Methods in Medical Research 28 (2): 532–54.\n\n\nKarim, Mohammad Ehsanul, Menglan Pang, and Robert W Platt. 2018. “Can We Train Machine Learning Methods to Outperform the High-Dimensional Propensity Score Algorithm?” Epidemiology 29 (2): 191–98.\n\n\nLow, Yen Sia, Blanca Gallego, and Nigam Haresh Shah. 2016. “Comparing High-Dimensional Confounder Control Methods for Rapid Cohort Studies from Electronic Health Records.” Journal of Comparative Effectiveness Research 5 (2): 179–92.\n\n\nNeugebauer, Romain, Julie A Schmittdiel, Zheng Zhu, Jeremy A Rassen, John D Seeger, and Sebastian Schneeweiss. 2015. “High-Dimensional Propensity Score Algorithm in Comparative Effectiveness Research with Time-Varying Interventions.” Statistics in Medicine 34 (5): 753–81.\n\n\nPang, Menglan, Tibor Schuster, Kristian B Filion, Maria Eberg, and Robert W Platt. 2016. “Targeted Maximum Likelihood Estimation for Pharmacoepidemiologic Research.” Epidemiology (Cambridge, Mass.) 27 (4): 570.\n\n\nPang, Menglan, Tibor Schuster, Kristian B Filion, Mireille E Schnitzer, Maria Eberg, and Robert W Platt. 2016. “Effect Estimation in Point-Exposure Studies with Binary Outcomes and High-Dimensional Covariate Data–a Comparison of Targeted Maximum Likelihood Estimation and Inverse Probability of Treatment Weighting.” The International Journal of Biostatistics 12 (2).\n\n\nRassen, Jeremy A, Patrick Blin, Sebastian Kloss, Romain S Neugebauer, Robert W Platt, Anton Pottegård, Sebastian Schneeweiss, and Sengwee Toh. 2023. “High-Dimensional Propensity Scores for Empirical Covariate Selection in Secondary Database Studies: Planning, Implementation, and Reporting.” Pharmacoepidemiology and Drug Safety 32 (2): 93–106.\n\n\nSchneeweiss, Sebastian. 2018. “Automated Data-Adaptive Analytics for Electronic Healthcare Data to Study Causal Treatment Effects.” Clinical Epidemiology, 771–88.\n\n\nSchneeweiss, Sebastian, Wesley Eddings, Robert J Glynn, Elisabetta Patorno, Jeremy Rassen, and Jessica M Franklin. 2017. “Variable Selection for Confounding Adjustment in High-Dimensional Covariate Spaces When Analyzing Healthcare Databases.” Epidemiology 28 (2): 237–48.\n\n\nTazare, John, Richard Wyss, Jessica M Franklin, Liam Smeeth, Stephen JW Evans, Shirley V Wang, Sebastian Schneeweiss, Ian J Douglas, Joshua J Gagne, and Elizabeth J Williamson. 2022. “Transparency of High-Dimensional Propensity Score Analyses: Guidance for Diagnostics and Reporting.” Pharmacoepidemiology and Drug Safety 31 (4): 411–23.\n\n\nTian, Yuxi, Martijn J Schuemie, and Marc A Suchard. 2018. “Evaluating Large-Scale Propensity Score Performance Through Real-World and Synthetic Data Experiments.” International Journal of Epidemiology 47 (6): 2005–14.\n\n\nWeberpals, Janick, Tim Becker, Jessica Davies, Fabian Schmich, Dominik Rüttinger, Fabian J Theis, and Anna Bauer-Mehren. 2021. “Deep Learning-Based Propensity Scores for Confounding Control in Comparative Effectiveness Research: A Large-Scale, Real-World Data Study.” Epidemiology 32 (3): 378–88.\n\n\nWyss, Richard, Sebastian Schneeweiss, Mark Van Der Laan, Samuel D Lendle, Cheng Ju, and Jessica M Franklin. 2018. “Using Super Learner Prediction Modeling to Improve High-Dimensional Propensity Score Estimation.” Epidemiology 29 (1): 96–106.\n\n\nWyss, Richard, Chen Yanover, Tal El-Hay, Dimitri Bennett, Robert W Platt, Andrew R Zullo, Grammati Sari, et al. 2022. “Machine Learning for Improving High-Dimensional Proxy Confounder Adjustment in Healthcare Database Studies: An Overview of the Current Literature.” Pharmacoepidemiology and Drug Safety 31 (9): 932–43."
+  },
+  {
+    "objectID": "dr.html#tmle",
+    "href": "dr.html#tmle",
+    "title": "10  Developments",
+    "section": "10.1 TMLE",
+    "text": "10.1 TMLE\n\nPang et al. 2016 Epidemiology\nPang et al. 2016 Int. J Biostat.\nJu et al. 2019 Stat Meth Med Res.\n\n\n\n\nParametric versions implemented\nSuper learner could be very time consuming\n\n(Pang, Schuster, Filion, Eberg, et al. 2016; Pang, Schuster, Filion, Schnitzer, et al. 2016; Ju, Gruber, et al. 2019)"
+  },
+  {
+    "objectID": "dr.html#super-learner",
+    "href": "dr.html#super-learner",
+    "title": "10  Developments",
+    "section": "10.2 Super learner",
+    "text": "10.2 Super learner\n\nWyss et al. 2018 Epidemiology\nJu et al. 2019 J App Stat.\n\n\n\n\nParametric versions implemented, or\nBias not used as a performance measure\n\n(Ju, Combs, et al. 2019; Wyss et al. 2018)"
+  },
+  {
+    "objectID": "dr.html#cross-validation",
+    "href": "dr.html#cross-validation",
+    "title": "10  Developments",
+    "section": "10.3 Cross-validation",
+    "text": "10.3 Cross-validation\n\nNaimi et al. (2021) Am J Epidemiol.\n\nTMLE not performing as well\n\nBalzer Westling (2021) Am J Epidemiol.\n\n\n\n(Naimi, Mishler, and Kennedy 2021; Balzer and Westling 2021)"
+  },
+  {
+    "objectID": "dr.html#super-learner-guideline",
+    "href": "dr.html#super-learner-guideline",
+    "title": "10  Developments",
+    "section": "10.4 Super learner guideline",
+    "text": "10.4 Super learner guideline\n\nPhillips et al. 2023 Int J Epidemiol.\n\n\n\n(Phillips et al. 2023)"
+  },
+  {
+    "objectID": "dr.html#cross-fitting-and-double-robust",
+    "href": "dr.html#cross-fitting-and-double-robust",
+    "title": "10  Developments",
+    "section": "10.5 Cross-fitting and double robust",
+    "text": "10.5 Cross-fitting and double robust\nZivich and Breskin (2021): Cross-fitting + together with double robust approaches in low-dimensional setting\n\n\n(Zivich and Breskin 2021)\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nTip\n\n\n\nWe want to assess the performance in the high-dimensional setting when\n\nmany proxies (some irrelevant) are available.\ncomplex structure is present.\n\n\n\n\n\n\n\nBalzer, Laura B, and Ted Westling. 2021. “Demystifying Statistical Inference When Using Machine Learning in Causal Research.” American Journal of Epidemiology. https://doi.org/10.1093/aje/kwab200.\n\n\nJu, Cheng, Mary Combs, Samuel D Lendle, Jessica M Franklin, Richard Wyss, Sebastian Schneeweiss, and Mark J van der Laan. 2019. “Propensity Score Prediction for Electronic Healthcare Databases Using Super Learner and High-Dimensional Propensity Score Methods.” Journal of Applied Statistics 46 (12): 2216–36.\n\n\nJu, Cheng, Susan Gruber, Samuel D Lendle, Antoine Chambaz, Jessica M Franklin, Richard Wyss, Sebastian Schneeweiss, and Mark J van Der Laan. 2019. “Scalable Collaborative Targeted Learning for High-Dimensional Data.” Statistical Methods in Medical Research 28 (2): 532–54.\n\n\nNaimi, Ashley I, Alan E Mishler, and Edward H Kennedy. 2021. “Challenges in Obtaining Valid Causal Effect Estimates with Machine Learning Algorithms.” American Journal of Epidemiology. https://doi.org/10.1093/aje/kwab201.\n\n\nPang, Menglan, Tibor Schuster, Kristian B Filion, Maria Eberg, and Robert W Platt. 2016. “Targeted Maximum Likelihood Estimation for Pharmacoepidemiologic Research.” Epidemiology (Cambridge, Mass.) 27 (4): 570.\n\n\nPang, Menglan, Tibor Schuster, Kristian B Filion, Mireille E Schnitzer, Maria Eberg, and Robert W Platt. 2016. “Effect Estimation in Point-Exposure Studies with Binary Outcomes and High-Dimensional Covariate Data–a Comparison of Targeted Maximum Likelihood Estimation and Inverse Probability of Treatment Weighting.” The International Journal of Biostatistics 12 (2).\n\n\nPhillips, Rachael V, Mark J van der Laan, Hana Lee, and Susan Gruber. 2023. “Practical Considerations for Specifying a Super Learner.” International Journal of Epidemiology. https://doi.org/10.1093/ije/dyad023.\n\n\nWyss, Richard, Sebastian Schneeweiss, Mark Van Der Laan, Samuel D Lendle, Cheng Ju, and Jessica M Franklin. 2018. “Using Super Learner Prediction Modeling to Improve High-Dimensional Propensity Score Estimation.” Epidemiology 29 (1): 96–106.\n\n\nZivich, Paul N, and Alexander Breskin. 2021. “Machine Learning for Causal Inference: On the Use of Cross-Fit Estimators.” Epidemiology (Cambridge, Mass.) 32 (3): 393."
+  },
+  {
+    "objectID": "plasmode.html#variables-used",
+    "href": "plasmode.html#variables-used",
+    "title": "Plasmode Simulation",
+    "section": "Variables used",
+    "text": "Variables used\nOriginal demographic variables (9)\nage, sex, education, race, marital status, income, born, cycle \nOriginal behaviour variables (5)\nsmoking, diet, high cholesterol, physical activity, sleep\n\n\nDemographic, behaviour and health history / access variables are all binary or categorical variables.\nOriginal health history / access variables (2)\ndiabetes family history, medical access\nTransformed lab variables (6) (complex forms)\nTranfored.var.1 = log(globulin)\nTranfored.var.2 = protein*calcium\nTranfored.var.3 = diastolicBP/systolicBP)^2\nTranfored.var.4 = sqrt(uric acid+bilirubin)/2\nTranfored.var.5 = phosphorus^2/(sodium*potassium)\nTranfored.var.6 = log(systolicBP+10)\n\n\nOriginal lab variables were: uric acid, protein, bilirubin, phosphorus, sodium, potassium, globulin, calcium, systolicBP, diastolicBP.\n\nTranfored var.1 + var.2 + var.3 + var.4 + var.5 + var.6 were used in the model (transformed lab variables instead of the original lab variables).\n\nCount based prescription codes (1) (proxies of comorbidity)\nSimple count = sum of selected ICD-10 CM codes\n\n\nSimple count \\(= \\sum_{i}^{94} R_s\\) where \\(R_s\\) are the selected recurrence covariates.\n\n\n\n\n\n\nUsing only partial list of recurrence covariates\n\n\n\nWe proceeded to select only those binary recurrence covariates that had a relative risk (RR) of less than 0.8 or greater than 1.2 compared to the outcome. Out of 143 recurrence covariates, 94 of them met this criterion. Therefore, 49 remaining covariates were not used in calculating the Simple count variable, and can be considered as noise."
+  },
+  {
+    "objectID": "plasmode.html#true-outcome-model",
+    "href": "plasmode.html#true-outcome-model",
+    "title": "Plasmode Simulation",
+    "section": "True outcome model",
+    "text": "True outcome model\nDiabetes (outcome) =  Obese (exposure) + \n  \n                      demographic/behaviour/health history variables + \n  \n                      transformed lab variables +\n  \n                      simple count with selected ICD-10 codes\n\n\n\n\n\n\nRole of variables\n\n\n\nThe outcome model formula dictates the relationship between exposure and each covariate, but observed association between exposure and covariates are retained from the data. It is possible that some of these covariates may not be associated with the exposure, but at least the association with the outcome is guaranteed by the outcome mode. To mimic the original data associations, we also retained the observed associations between the outcome and the covariates.\n\n\n\n\n\n\n\n\nSimulation setup\n\n\n\n\nSize of each cohort = 3,000\n500 simulations/cohort generation\nOutcome rate = 0.4\nExposure prevalence = 0.2\nTrue exposure Odds ratio = 1 or Risk difference = 0\n\nWe maintained all covariate coefficients associated with the remaining covariates to be consistent with the original data. Only the association of the ‘simple count’ with the outcome was amplified 5 times. By exaggerating the effect of the ‘simple count’ variable, we aimed to simulate a scenario in which a pronounced and strong unmeasured confounder may exist.\n\n\n\n\n\n\n(Pang et al. 2016; Karim, Pang, and Platt 2018)\n\n\nFranklin, Jessica M, Sebastian Schneeweiss, Jennifer M Polinski, and Jeremy A Rassen. 2014. “Plasmode Simulation for the Evaluation of Pharmacoepidemiologic Methods in Complex Healthcare Databases.” Computational Statistics & Data Analysis 72: 219–26.\n\n\nKarim, Mohammad Ehsanul, Menglan Pang, and Robert W Platt. 2018. “Can We Train Machine Learning Methods to Outperform the High-Dimensional Propensity Score Algorithm?” Epidemiology 29 (2): 191–98.\n\n\nPang, Menglan, Tibor Schuster, Kristian B Filion, Mireille E Schnitzer, Maria Eberg, and Robert W Platt. 2016. “Effect Estimation in Point-Exposure Studies with Binary Outcomes and High-Dimensional Covariate Data–a Comparison of Targeted Maximum Likelihood Estimation and Inverse Probability of Treatment Weighting.” The International Journal of Biostatistics 12 (2)."
+  },
+  {
+    "objectID": "compare.html",
+    "href": "compare.html",
+    "title": "11  Compare",
+    "section": "",
+    "text": "Three broad class of methods\n\n\n\nAll weighted propensity score versions.\n\nNo super learner used\n\n\nOnly investigator specified variables (no proxies)\nKitchen sink (no variable selection)\nhdPS\nLASSO (recurrent variables being associated with the outcome), or\nhybrid (first hdPS, and then LASSO)\n\n\nSuper learner versions of the above\n\n\n2 set of super learner used (3 learners vs 4)\n\n\nTMLE versions of the above\n\n\nAlso includes a double cross-fit version (very time consuming)"
+  },
+  {
+    "objectID": "results.html#bias",
+    "href": "results.html#bias",
+    "title": "12  Results",
+    "section": "12.1 Bias",
+    "text": "12.1 Bias\n\n\n\n\n\n\n\n\nu represents those where no proxies are utilized\nSL represents those where super learner was used with the following 4 candidate learners\n\nLogistic regression\nMARS (Multivariate Adaptive Regression Splines)\nLASSO\nXGBoost (Extreme Gradient Boosting)\n\nTMLE represents those where TMLE was used\nDC represents double cross-fit.\n\nSame super learner used for SL and TMLE methods.\n\n\n\n\n\n\nTip\n\n\n\nClearly using proxies improve bias estimates"
+  },
+  {
+    "objectID": "results.html#bias-used-proxies",
+    "href": "results.html#bias-used-proxies",
+    "title": "12  Results",
+    "section": "12.2 Bias (used proxies)",
+    "text": "12.2 Bias (used proxies)\n\n\n\n\n\n\n\n\nSL methods seem to have negligible improvements over non-SL methods in terms of bias.\nTMLE methods winning in terms of bias."
+  },
+  {
+    "objectID": "results.html#mse",
+    "href": "results.html#mse",
+    "title": "12  Results",
+    "section": "12.3 MSE",
+    "text": "12.3 MSE\n\n\n\n\n\n\n\n\nTMLE methods winning in terms of MSE."
+  },
+  {
+    "objectID": "results.html#relative-error",
+    "href": "results.html#relative-error",
+    "title": "12  Results",
+    "section": "12.4 Relative Error",
+    "text": "12.4 Relative Error\n\n\n\n\n\n\n\n\nTMLE methods are have worse relative % error in Model SE estimation.\nSL methods are winners."
+  },
+  {
+    "objectID": "results.html#coverage",
+    "href": "results.html#coverage",
+    "title": "12  Results",
+    "section": "12.5 Coverage",
+    "text": "12.5 Coverage\n\n\n\n\n\n\n\n\nTMLE methods are have worse 95% coverage (below 85%).\nSL methods are winners.\nBut some of these methods were biased, so hard to compare."
+  },
+  {
+    "objectID": "results.html#bias-eliminated-coverage",
+    "href": "results.html#bias-eliminated-coverage",
+    "title": "12  Results",
+    "section": "12.6 Bias eliminated coverage",
+    "text": "12.6 Bias eliminated coverage\n\n\n\n\n\n\n\n\n\n\nTMLE methods are have worse 95% bias eliminated coverage (below 85%)."
+  },
+  {
+    "objectID": "results2.html#bias",
+    "href": "results2.html#bias",
+    "title": "13  Refined Results",
+    "section": "13.1 Bias",
+    "text": "13.1 Bias\n\n\n\n\n\n\n\n\nSL represents those where super learner was used with the following 3 candidate learners\n\nLogistic regression\nMARS (Multivariate Adaptive Regression Splines)\nLASSO\n\nTMLE represents those where TMLE was used\nDC represents double cross-fit.\n\nXGBoost omitted\n\n\nDC version of TMLE (kitchen sink) associated with least bias!\nNon-super learner methods remains the same (results did not change).\nSame super learner used for SL and TMLE methods."
+  },
+  {
+    "objectID": "results2.html#mse",
+    "href": "results2.html#mse",
+    "title": "13  Refined Results",
+    "section": "13.2 MSE",
+    "text": "13.2 MSE\n\n\n\n\n\n\n\n\nDC version of TMLE (kitchen sink) associated with least MSE!"
+  },
+  {
+    "objectID": "results2.html#relative-error",
+    "href": "results2.html#relative-error",
+    "title": "13  Refined Results",
+    "section": "13.3 Relative Error",
+    "text": "13.3 Relative Error\n\n\n\n\n\n\n\n\nDC version of TMLE (kitchen sink) associated with least relative error in model SE estimation!"
+  },
+  {
+    "objectID": "results2.html#coverage",
+    "href": "results2.html#coverage",
+    "title": "13  Refined Results",
+    "section": "13.4 Coverage",
+    "text": "13.4 Coverage\n\n\n\n\n\n\n\n\nDC version of TMLE (kitchen sink) associated with coverage closest to nominal!"
+  },
+  {
+    "objectID": "results2.html#bias-eliminated-coverage",
+    "href": "results2.html#bias-eliminated-coverage",
+    "title": "13  Refined Results",
+    "section": "13.5 Bias eliminated coverage",
+    "text": "13.5 Bias eliminated coverage\n\n\n\n\n\n\n\n\nDC version of TMLE (kitchen sink) associated with bias eliminated coverage closest to nominal!"
+  },
+  {
+    "objectID": "results2.html#more-details",
+    "href": "results2.html#more-details",
+    "title": "13  Refined Results",
+    "section": "13.6 More Details",
+    "text": "13.6 More Details\nReview more detailed simulation results conducted:\n\n\n\n\n\n\n\n\n\nAnalysis strategy\nOutcome Model Specification\n\n\n\n\nFirth regression\nThe same\n\n\nStabilized weights\nThe same\n\n\nVarious outcome model specification\n\n\n\n\nNo covariate adjustment\n\n\n\nJust investigator-specified covariate adjustment\n\n\n\nAdjustment of only those investigator-specified covariates that are imbalanced (SMD > 0.1)\n\n\n\nAdjustment of only those covariates that are imbalanced (SMD > 0.1; investigator-specified or recurrence)\n\n\n\nAdjustment of all covariates (investigator-specified or recurrence)\n\n\n\n\n\n\n\n\n(Firth 1993; Austin and Stuart 2015)\nAll of the aove figures are based on adjustment of all covariates (investigator-specified or recurrence) in the outcome model.\n\n\nAustin, Peter C, and Elizabeth A Stuart. 2015. “Moving Towards Best Practice When Using Inverse Probability of Treatment Weighting (IPTW) Using the Propensity Score to Estimate Causal Treatment Effects in Observational Studies.” Statistics in Medicine 34 (28): 3661–79.\n\n\nBalzer, Laura B, and Ted Westling. 2021. “Demystifying Statistical Inference When Using Machine Learning in Causal Research.” American Journal of Epidemiology. https://doi.org/10.1093/aje/kwab200.\n\n\nFirth, David. 1993. “Bias Reduction of Maximum Likelihood Estimates.” Biometrika 80 (1): 27–38.\n\n\nNaimi, Ashley I, Alan E Mishler, and Edward H Kennedy. 2021. “Challenges in Obtaining Valid Causal Effect Estimates with Machine Learning Algorithms.” American Journal of Epidemiology. https://doi.org/10.1093/aje/kwab201.\n\n\nPhillips, Rachael V, Mark J van der Laan, Hana Lee, and Susan Gruber. 2023. “Practical Considerations for Specifying a Super Learner.” International Journal of Epidemiology. https://doi.org/10.1093/ije/dyad023.\n\n\nZivich, Paul N, and Alexander Breskin. 2021. “Machine Learning for Causal Inference: On the Use of Cross-Fit Estimators.” Epidemiology (Cambridge, Mass.) 32 (3): 393."
+  },
+  {
+    "objectID": "takehome.html#what-are-the-strengths",
+    "href": "takehome.html#what-are-the-strengths",
+    "title": "14  Take-aways",
+    "section": "14.1 What are the strengths",
+    "text": "14.1 What are the strengths\n\nComprehensive comparison of various algorithms, going beyond the current literature.\nPlasmode simulation includes realistic considerations:\n\n\nComplex function\nMany noise variables available\nBased on an open dataset\n\n\nComprehensive list of performance measures considered:\n\n\nCoverage\nrelative error in model SE"
+  },
+  {
+    "objectID": "takehome.html#what-could-improve",
+    "href": "takehome.html#what-could-improve",
+    "title": "14  Take-aways",
+    "section": "14.2 What could improve",
+    "text": "14.2 What could improve\n\nMore proxies!\n\n\nOthers have used \\(k = 10\\) in the same context to compare\n\n\nInvestigate additional double cross-fit versions:\n\n\nOnly kitchen sink used"
+  },
+  {
+    "objectID": "takehome.html#conclusions",
+    "href": "takehome.html#conclusions",
+    "title": "14  Take-aways",
+    "section": "14.3 Conclusions",
+    "text": "14.3 Conclusions\n\n\n\n\n\n\nHigh-dimensional proxy adjustment context\n\n\n\n\nEmploy TMLE whenever possible for more unbiased and accurate results.\n\n\nTMLE methods have competitive advantage while adjusting for too many proxies (high-dimensional; beyond low dimensions where it is now popular).\n\n\nExercise caution with Super Learner, considering the trade-offs between smooth and non-smooth learners."
+  },
+  {
+    "objectID": "references.html",
+    "href": "references.html",
+    "title": "References",
+    "section": "",
+    "text": "Austin, Peter C, and Elizabeth A Stuart. 2015. “Moving Towards\nBest Practice When Using Inverse Probability of Treatment Weighting\n(IPTW) Using the Propensity Score to Estimate Causal Treatment Effects\nin Observational Studies.” Statistics in Medicine 34\n(28): 3661–79.\n\n\nBalzer, Laura B, and Ted Westling. 2021. “Demystifying Statistical\nInference When Using Machine Learning in Causal Research.”\nAmerican Journal of Epidemiology. https://doi.org/10.1093/aje/kwab200.\n\n\nBenasseur, Imane, Denis Talbot, Madeleine Durand, Anne Holbrook, Alexis\nMatteau, Brian J Potter, Christel Renoux, Mireille E Schnitzer,\nJean-Éric Tarride, and Jason R Guertin. 2022. “A Comparison of\nConfounder Selection and Adjustment Methods for Estimating Causal\nEffects Using Large Healthcare Databases.”\nPharmacoepidemiology and Drug Safety 31 (4): 424–33.\n\n\nBross, Irwin DJ. 1966. “Spurious Effects from an Extraneous\nVariable.” Journal of Chronic Diseases 19 (6): 637–47.\n\n\nCharlson, Mary E, Peter Pompei, Kathy L Ales, and C Ronald MacKenzie.\n1987. “A New Method of Classifying Prognostic Comorbidity in\nLongitudinal Studies: Development and Validation.” Journal of\nChronic Diseases 40 (5): 373–83.\n\n\nChoi, BCK, and F Shi. 2001. “Risk Factors for Diabetes Mellitus by\nAge and Sex: Results of the National Population Health Survey.”\nDiabetologia 44: 1221–31.\n\n\nConnolly, John G, Sebastian Schneeweiss, Robert J Glynn, and Joshua J\nGagne. 2019. “Quantifying Bias Reduction with Fixed-Duration\nVersus All-Available Covariate Assessment Periods.”\nPharmacoepidemiology and Drug Safety 28 (5): 665–70.\n\n\nDisease Control, Centers for, and Prevention. 2021. “National\nHealth and Nutrition Examination Survey (NHANES).” National\nCenter for Health Statistics.\n\n\nElixhauser, Anne, Claudia Steiner, D Robert Harris, and Rosanna M\nCoffey. 1998. “Comorbidity Measures for Use with Administrative\nData.” Medical Care, 8–27.\n\n\nFirth, David. 1993. “Bias Reduction of Maximum Likelihood\nEstimates.” Biometrika 80 (1): 27–38.\n\n\nFranklin, Jessica M, Wesley Eddings, Robert J Glynn, and Sebastian\nSchneeweiss. 2015. “Regularized Regression Versus the\nHigh-Dimensional Propensity Score for Confounding Adjustment in\nSecondary Database Analyses.” American Journal of\nEpidemiology 182 (7): 651–59.\n\n\nFranklin, Jessica M, Sebastian Schneeweiss, Jennifer M Polinski, and\nJeremy A Rassen. 2014. “Plasmode Simulation for the Evaluation of\nPharmacoepidemiologic Methods in Complex Healthcare Databases.”\nComputational Statistics & Data Analysis 72: 219–26.\n\n\nGreenland, Sander, Judea Pearl, and James M Robins. 1999. “Causal\nDiagrams for Epidemiologic Research.” Epidemiology,\n37–48.\n\n\nJu, Cheng, Mary Combs, Samuel D Lendle, Jessica M Franklin, Richard\nWyss, Sebastian Schneeweiss, and Mark J van der Laan. 2019.\n“Propensity Score Prediction for Electronic Healthcare Databases\nUsing Super Learner and High-Dimensional Propensity Score\nMethods.” Journal of Applied Statistics 46 (12):\n2216–36.\n\n\nJu, Cheng, Susan Gruber, Samuel D Lendle, Antoine Chambaz, Jessica M\nFranklin, Richard Wyss, Sebastian Schneeweiss, and Mark J van Der Laan.\n2019. “Scalable Collaborative Targeted Learning for\nHigh-Dimensional Data.” Statistical Methods in Medical\nResearch 28 (2): 532–54.\n\n\nKarim, Mohammad Ehsanul, Menglan Pang, and Robert W Platt. 2018.\n“Can We Train Machine Learning Methods to Outperform the\nHigh-Dimensional Propensity Score Algorithm?”\nEpidemiology 29 (2): 191–98.\n\n\nKlein, Samuel, Amalia Gastaldelli, Hannele Yki-Järvinen, and Philipp E\nScherer. 2022. “Why Does Obesity Cause Diabetes?” Cell\nMetabolism 34 (1): 11–20.\n\n\nLix, Lisa M, Jacqueline Quail, Opeyemi Fadahunsi, and Gary F Teare.\n2013. “Predictive Performance of Comorbidity Measures in\nAdministrative Databases for Diabetes Cohorts.” BMC Health\nServices Research 13: 1–12.\n\n\nLix, LM, J Quail, G Teare, and B Acan. 2011. “Performance of\nComorbidity Measures for Predicting Outcomes in Population-Based\nOsteoporosis Cohorts.” Osteoporosis International 22:\n2633–43.\n\n\nLow, Yen Sia, Blanca Gallego, and Nigam Haresh Shah. 2016.\n“Comparing High-Dimensional Confounder Control Methods for Rapid\nCohort Studies from Electronic Health Records.” Journal of\nComparative Effectiveness Research 5 (2): 179–92.\n\n\nNaimi, Ashley I, Alan E Mishler, and Edward H Kennedy. 2021.\n“Challenges in Obtaining Valid Causal Effect Estimates with\nMachine Learning Algorithms.” American Journal of\nEpidemiology. https://doi.org/10.1093/aje/kwab201.\n\n\nNeugebauer, Romain, Julie A Schmittdiel, Zheng Zhu, Jeremy A Rassen,\nJohn D Seeger, and Sebastian Schneeweiss. 2015. “High-Dimensional\nPropensity Score Algorithm in Comparative Effectiveness Research with\nTime-Varying Interventions.” Statistics in Medicine 34\n(5): 753–81.\n\n\nPang, Menglan, Tibor Schuster, Kristian B Filion, Maria Eberg, and\nRobert W Platt. 2016. “Targeted Maximum Likelihood Estimation for\nPharmacoepidemiologic Research.” Epidemiology (Cambridge,\nMass.) 27 (4): 570.\n\n\nPang, Menglan, Tibor Schuster, Kristian B Filion, Mireille E Schnitzer,\nMaria Eberg, and Robert W Platt. 2016. “Effect Estimation in\nPoint-Exposure Studies with Binary Outcomes and High-Dimensional\nCovariate Data–a Comparison of Targeted Maximum Likelihood Estimation\nand Inverse Probability of Treatment Weighting.” The\nInternational Journal of Biostatistics 12 (2).\n\n\nPhillips, Rachael V, Mark J van der Laan, Hana Lee, and Susan Gruber.\n2023. “Practical Considerations for Specifying a Super\nLearner.” International Journal of Epidemiology. https://doi.org/10.1093/ije/dyad023.\n\n\nRassen, Jeremy A, Patrick Blin, Sebastian Kloss, Romain S Neugebauer,\nRobert W Platt, Anton Pottegård, Sebastian Schneeweiss, and Sengwee Toh.\n2023. “High-Dimensional Propensity Scores for Empirical Covariate\nSelection in Secondary Database Studies: Planning, Implementation, and\nReporting.” Pharmacoepidemiology and Drug Safety 32 (2):\n93–106.\n\n\nRobert, Dennis. 2020. autoCovariateSelection: Automatic Covariate\nSelection. https://CRAN.R-project.org/package=autoCovariateSelection.\n\n\nSchneeweiss, Sebastian. 2006. “Sensitivity Analysis and External\nAdjustment for Unmeasured Confounders in Epidemiologic Database Studies\nof Therapeutics.” Pharmacoepidemiology and Drug Safety\n15 (5): 291–303.\n\n\n———. 2018. “Automated Data-Adaptive Analytics for Electronic\nHealthcare Data to Study Causal Treatment Effects.” Clinical\nEpidemiology, 771–88.\n\n\nSchneeweiss, Sebastian, Wesley Eddings, Robert J Glynn, Elisabetta\nPatorno, Jeremy Rassen, and Jessica M Franklin. 2017. “Variable\nSelection for Confounding Adjustment in High-Dimensional Covariate\nSpaces When Analyzing Healthcare Databases.”\nEpidemiology 28 (2): 237–48.\n\n\nSchneeweiss, Sebastian, and Malcolm Maclure. 2000. “Use of\nComorbidity Scores for Control of Confounding in Studies Using\nAdministrative Databases.” International Journal of\nEpidemiology 29 (5): 891–98.\n\n\nSchneeweiss, Sebastian, Jeremy A Rassen, Robert J Glynn, Jerry Avorn,\nHelen Mogun, and M Alan Brookhart. 2009. “High-Dimensional\nPropensity Score Adjustment in Studies of Treatment Effects Using Health\nCare Claims Data.” Epidemiology (Cambridge, Mass.) 20\n(4): 512.\n\n\nSchuster, Tibor, Wilfrid Kouokam Lowe, and Robert W Platt. 2016.\n“Propensity Score Model Overfitting Led to Inflated Variance of\nEstimated Odds Ratios.” Journal of Clinical Epidemiology\n80: 97–106.\n\n\nSchuster, Tibor, Menglan Pang, and Robert W Platt. 2015. “On the\nRole of Marginal Confounder Prevalence–Implications for the\nHigh-Dimensional Propensity Score Algorithm.”\nPharmacoepidemiology and Drug Safety 24 (9): 1004–7.\n\n\nStuart, Elizabeth A, Brian K Lee, and Finbarr P Leacy. 2013.\n“Prognostic Score–Based Balance Measures Can Be a Useful\nDiagnostic for Propensity Score Methods in Comparative Effectiveness\nResearch.” Journal of Clinical Epidemiology 66 (8):\nS84–90.\n\n\nTazare, John, Richard Wyss, Jessica M Franklin, Liam Smeeth, Stephen JW\nEvans, Shirley V Wang, Sebastian Schneeweiss, Ian J Douglas, Joshua J\nGagne, and Elizabeth J Williamson. 2022. “Transparency of\nHigh-Dimensional Propensity Score Analyses: Guidance for Diagnostics and\nReporting.” Pharmacoepidemiology and Drug Safety 31 (4):\n411–23.\n\n\nTian, Yuxi, Martijn J Schuemie, and Marc A Suchard. 2018.\n“Evaluating Large-Scale Propensity Score Performance Through\nReal-World and Synthetic Data Experiments.” International\nJournal of Epidemiology 47 (6): 2005–14.\n\n\nVanderWeele, Tyler J. 2019. “Principles of Confounder\nSelection.” European Journal of Epidemiology 34: 211–19.\n\n\nVon Korff, Michael, Edward H Wagner, and Kathleen Saunders. 1992.\n“A Chronic Disease Score from Automated Pharmacy Data.”\nJournal of Clinical Epidemiology 45 (2): 197–203.\n\n\nWeberpals, Janick, Tim Becker, Jessica Davies, Fabian Schmich, Dominik\nRüttinger, Fabian J Theis, and Anna Bauer-Mehren. 2021. “Deep\nLearning-Based Propensity Scores for Confounding Control in Comparative\nEffectiveness Research: A Large-Scale, Real-World Data Study.”\nEpidemiology 32 (3): 378–88.\n\n\nWyss, Richard, Sebastian Schneeweiss, Mark Van Der Laan, Samuel D\nLendle, Cheng Ju, and Jessica M Franklin. 2018. “Using Super\nLearner Prediction Modeling to Improve High-Dimensional Propensity Score\nEstimation.” Epidemiology 29 (1): 96–106.\n\n\nWyss, Richard, Chen Yanover, Tal El-Hay, Dimitri Bennett, Robert W\nPlatt, Andrew R Zullo, Grammati Sari, et al. 2022. “Machine\nLearning for Improving High-Dimensional Proxy Confounder Adjustment in\nHealthcare Database Studies: An Overview of the Current\nLiterature.” Pharmacoepidemiology and Drug Safety 31\n(9): 932–43.\n\n\nZivich, Paul N, and Alexander Breskin. 2021. “Machine Learning for\nCausal Inference: On the Use of Cross-Fit Estimators.”\nEpidemiology (Cambridge, Mass.) 32 (3): 393."
+  }
+]
