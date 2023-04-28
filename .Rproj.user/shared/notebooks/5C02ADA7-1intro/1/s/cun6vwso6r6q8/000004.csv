@@ -1,0 +1,2 @@
+"0","basetable <- rwd %>% select(person_id, treatment, outcome_date) %>% distinct()"
+"0","basetable[complete.cases(basetable),]"

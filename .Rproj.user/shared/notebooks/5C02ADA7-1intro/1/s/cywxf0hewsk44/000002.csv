@@ -1,0 +1,6 @@
+"0","patientIds <- basetable$person_id #this can be used as patientIdVector argument for the functions in this package"
+"0","length(unique(patientIds))"
+"1","[1]"
+"1"," 1000"
+"1","
+"

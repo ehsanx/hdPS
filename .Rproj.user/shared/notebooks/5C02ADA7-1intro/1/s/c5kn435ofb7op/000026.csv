@@ -1,0 +1,12 @@
+"0","step1 <- get_candidate_covariates(df = rwd,  domainVarname = ""domain"", eventCodeVarname = ""event_code"" ,"
+"0","                                  patientIdVarname = ""person_id"", patientIdVector = patientIds,n = 1000, min_num_patients = 10)"
+"1","[38;5;232mJoining, by = c(""eventCodeVarname"", ""domainVarname"")[39m
+"
+"0","names(step1)"
+"1","[1]"
+"1"," ""covars""     "
+"1"," ""covars_data"""
+"1"," ""patientIds"" "
+"1","
+"
+"0","step1$covars[step1$covars$prevalence > 10,]"

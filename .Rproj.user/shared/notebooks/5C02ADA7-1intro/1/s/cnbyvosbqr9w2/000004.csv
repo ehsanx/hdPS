@@ -1,0 +1,8 @@
+"0","step3 <- get_prioritised_covariates(df = out2, patientIdVarname = ""person_id"", exposureVector = basetable$treatment,"
+"0","                                    outcomeVector = ifelse(is.na(basetable$outcome_date), 0,1),patientIdVector = patientIds, k = 10)"
+"0","dim(step3$autoselected_covariate_df)"
+"1","[1]"
+"1"," 1000"
+"1","   11"
+"1","
+"

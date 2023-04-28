@@ -1,0 +1,44 @@
+"0","require(tableone)"
+"2","Loading required package: tableone
+"
+"2","Warning:"
+"2"," package ‘tableone’ was built under R version 4.1.3
+"
+"0","require(Publish)"
+"2","Loading required package: Publish
+"
+"2","Warning:"
+"2"," package ‘Publish’ was built under R version 4.1.3
+"
+"2","Loading required package: prodlim
+"
+"2","Warning:"
+"2"," package ‘prodlim’ was built under R version 4.1.3
+"
+"2","Registered S3 method overwritten by 'data.table':
+  method           from
+  print.data.table     
+"
+"0","require(MatchIt)"
+"2","Loading required package: MatchIt
+"
+"2","Warning:"
+"2"," package ‘MatchIt’ was built under R version 4.1.3
+"
+"0","require(cobalt)"
+"2","Loading required package: cobalt
+"
+"2","Warning:"
+"2"," package ‘cobalt’ was built under R version 4.1.3
+"
+"2"," cobalt (Version 4.3.2, Build Date: 2022-01-19)
+"
+"2","
+Attaching package: ‘cobalt’
+
+"
+"2","The following object is masked from ‘package:MatchIt’:
+
+    lalonde
+
+"

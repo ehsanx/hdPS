@@ -1,0 +1,8 @@
+"0","step2 <- get_recurrence_covariates(df = out1, patientIdVarname = ""person_id"", eventCodeVarname = ""event_code"", patientIdVector = patientIds)"
+"0","names(step2)"
+"1","[1]"
+"1"," ""recurrence_data"""
+"1"," ""patientIds""     "
+"1","
+"
+"0","head(step2$recurrence_data)"
